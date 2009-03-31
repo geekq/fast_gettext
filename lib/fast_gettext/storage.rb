@@ -43,7 +43,7 @@ module FastGettext
       # But can not change it now because of (strange)
       # self.current_repository == NoTextDomainConfigured 
       # design.
-      translation_repositories[text_domain] || (raise NoTextDomainConfigured)
+      translation_repositories[text_domain] || NoTextDomainConfigured
     end
 
     def locale
