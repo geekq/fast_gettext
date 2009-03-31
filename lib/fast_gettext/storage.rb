@@ -4,9 +4,13 @@ module FastGettext
   #  - provide error messages when repositories are unconfigured
   #  - accept/reject locales that are set by the user
   module Storage
-    class NoTextDomainConfigured < Exception;end
+    class NoTextDomainConfigured < RuntimeError
+      def to_s
+        "Current textdomain (#{FastGettext.text_domain.inspect}) was not added, use FastGettext.add_text_domain!"
+      end
+    end
 
-    [:available_locales,:text_domain,:_locale,:current_cache].each do |method_name|
+    [:available_locales,:_locale,:current_cache].each do |method_name|
       key = "fast_gettext_#{method_name}".to_sym
       define_method method_name do
         Thread.current[key]
@@ -19,9 +23,24 @@ module FastGettext
     #so initial translations does not crash
     Thread.current[:fast_gettext_current_cache]={}
 
+    def text_domain
+      Thread.current[:fast_gettext_text_domain] || default_text_domain
+    end
+
     def text_domain=(new_domain)
       Thread.current[:fast_gettext_text_domain]=new_domain
       update_current_cache
+    end
+
+    #-> cattr_accessor :default_text_domain
+    @@default_text_domain = nil
+    def default_text_domain=(domain)
+      @@default_text_domain = domain
+      update_current_cache
+    end
+
+    def default_text_domain
+      @@default_text_domain
     end
 
     #global, since re-parsing whole folders takes too much time...
@@ -38,12 +57,7 @@ module FastGettext
     end
 
     def current_repository
-      # Exceptions should be raised - not returned, should not they?
-      # otherwise we get 'method [] is not defined for NoTextDomainConfigured class'
-      # But can not change it now because of (strange)
-      # self.current_repository == NoTextDomainConfigured 
-      # design.
-      translation_repositories[text_domain] || NoTextDomainConfigured
+      translation_repositories[text_domain] || raise(NoTextDomainConfigured)
     end
 
     def locale
@@ -92,10 +106,8 @@ module FastGettext
 
     #turn off translation if none was defined to disable all resulting errors
     def silence_errors
-      if not self.current_repository or self.current_repository == NoTextDomainConfigured
-        require 'fast_gettext/translation_repository/base'
-        translation_repositories[text_domain] = TranslationRepository::Base.new('x')
-      end
+      require 'fast_gettext/translation_repository/base'
+      translation_repositories[text_domain] = TranslationRepository::Base.new('x')
     end
 
     private
