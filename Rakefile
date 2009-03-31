@@ -5,6 +5,7 @@ task :default do |t|
   system("spec #{options} #{files}")
 end
 
+desc "Compare performance"
 task :benchmark do
   %w[baseline ideal fast_gettext original i18n_simple].each do |bench|
     puts `ruby benchmark/#{bench}.rb`
